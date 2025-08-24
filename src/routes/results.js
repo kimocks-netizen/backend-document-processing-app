@@ -1,13 +1,12 @@
-// src/routes/results.js
+// backend/routes/results.js
 const express = require('express');
-const { getProcessingResult } = require('../services/supabaseService');
+const { getProcessingResult, getAllProcessingJobs } = require('../services/supabaseService');
 
 const router = express.Router();
 
-// GET /api/results - Retrieve all processing jobs
+// GET /api/results - Get all processing jobs
 router.get('/', async (req, res, next) => {
   try {
-    const { getAllProcessingJobs } = require('../services/supabaseService');
     const jobs = await getAllProcessingJobs();
     res.status(200).json({ jobs });
   } catch (error) {
@@ -15,7 +14,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /api/results/:jobId - Retrieve processing results
+// GET /api/results/:jobId - Retrieve processing results for a specific job
 router.get('/:jobId', async (req, res, next) => {
   try {
     const { jobId } = req.params;
