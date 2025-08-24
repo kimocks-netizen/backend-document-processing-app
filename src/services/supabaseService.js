@@ -2,9 +2,9 @@
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 
-// Initialize Supabase client
-const supabaseUrl = "https://biklzpyuarncssdbwfmk.supabase.co";
-const supabaseKey = process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsI...34e";
+// Initialize Supabase client with service role key for backend operations
+const supabaseUrl = process.env.SUPABASE_URL || "https://biklzpyuarncssdbwfmk.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
@@ -102,6 +102,30 @@ async function updateProcessingResults(jobId, results) {
 }
 
 /**
+ * Get all processing jobs
+ * @returns {Promise<Array>} Array of processing jobs
+ */
+async function getAllProcessingJobs() {
+  const { data, error } = await supabase
+    .from('document_processing_jobs')
+    .select('job_id, file_name, first_name, last_name, status, processing_method, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch processing jobs: ${error.message}`);
+  }
+
+  return data.map(job => ({
+    jobId: job.job_id,
+    fileName: job.file_name,
+    fullName: `${job.first_name} ${job.last_name}`,
+    status: job.status,
+    processingMethod: job.processing_method,
+    createdAt: job.created_at,
+  }));
+}
+
+/**
  * Get processing result by job ID
  * @param {string} jobId - Job identifier
  * @returns {Promise<Object|null>} Processing result or null if not found
@@ -136,4 +160,5 @@ module.exports = {
   storeDocumentMetadata,
   updateProcessingResults,
   getProcessingResult,
+  getAllProcessingJobs,
 };

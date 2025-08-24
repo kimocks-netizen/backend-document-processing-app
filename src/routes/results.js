@@ -4,6 +4,17 @@ const { getProcessingResult } = require('../services/supabaseService');
 
 const router = express.Router();
 
+// GET /api/results - Retrieve all processing jobs
+router.get('/', async (req, res, next) => {
+  try {
+    const { getAllProcessingJobs } = require('../services/supabaseService');
+    const jobs = await getAllProcessingJobs();
+    res.status(200).json({ jobs });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/results/:jobId - Retrieve processing results
 router.get('/:jobId', async (req, res, next) => {
   try {
