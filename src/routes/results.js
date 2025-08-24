@@ -19,18 +19,24 @@ router.get('/:jobId', async (req, res, next) => {
   try {
     const { jobId } = req.params;
     
+    console.log('Fetching results for job ID:', jobId);
+    
     if (!jobId) {
       return res.status(400).json({ error: 'Job ID is required' });
     }
 
     const result = await getProcessingResult(jobId);
+    console.log('Result from database:', result);
     
     if (!result) {
+      console.log('No result found for job ID:', jobId);
       return res.status(404).json({ error: 'Result not found' });
     }
 
+    console.log('Sending result to client:', result);
     res.status(200).json(result);
   } catch (error) {
+    console.error('Error in results route:', error);
     next(error);
   }
 });

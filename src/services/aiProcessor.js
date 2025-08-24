@@ -2,33 +2,45 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAvIci1fEDUFa58BpcDUx6_W47D7umozP8');
 
 /**
  * Process extracted text with AI for enhanced data extraction
  * @param {string} text - Raw extracted text
+ * @param {string} providedDob - Date of birth provided by user (YYYY-MM-DD)
  * @returns {Promise<Object>} AI extracted structured data
  */
-async function processWithAI(text) {
+async function processWithAI(text, providedDob) {
   try {
+    console.log('AI Processor: Starting with text length:', text.length, 'and DOB:', providedDob);
+    
     // If no API key is provided, use mock data for development
     if (!process.env.GEMINI_API_KEY) {
-      console.log('Using mock AI data - provide GEMINI_API_KEY for real AI processing');
-      return generateMockAIResponse(text);
+      console.log('AI Processor: No GEMINI_API_KEY found, using mock data');
+      return generateMockAIResponse(text, providedDob);
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    console.log('AI Processor: GEMINI_API_KEY found, proceeding with real AI processing...');
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `
       Analyze the following text extracted from a document and extract structured information.
-      Look for personal details, contact information, dates, addresses, and any other relevant information.
+      IMPORTANT: Use the provided date of birth (${providedDob}) for age calculation, don't try to extract DOB from the text.
+      
+      Look for:
+      1. Personal details (name, but use provided DOB)
+      2. Contact information (emails, phone numbers)
+      3. Addresses
+      4. Identification numbers
+      5. Key dates (other than DOB)
+      6. Document summary
       
       Return ONLY a JSON object with this structure:
       {
         "personalInfo": {
-          "fullName": "extracted full name",
-          "dateOfBirth": "extracted date of birth",
-          "age": calculated age if possible
+          "fullName": "extracted full name if found",
+          "dateOfBirth": "${providedDob}",
+          "age": ${calculateAgeFromDob(providedDob)}
         },
         "contactInfo": {
           "emails": ["email1", "email2"],
@@ -44,19 +56,23 @@ async function processWithAI(text) {
       ${text.substring(0, 3000)} // Limit text length to avoid token limits
     `;
 
-    console.log('Sending request to Gemini AI...');
+    console.log('AI Processor: Sending request to Gemini AI...');
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const aiText = response.text();
     
-    console.log('Received AI response:', aiText.substring(0, 200) + '...');
+    console.log('AI Processor: Received AI response:', aiText.substring(0, 200) + '...');
     
     // Try to parse JSON from AI response
     try {
-      // Extract JSON from response (AI might wrap it in markdown code blocks)
       const jsonMatch = aiText.match(/```json\n([\s\S]*?)\n```/) || aiText.match(/({[\s\S]*})/);
       const jsonString = jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiText;
       const parsedData = JSON.parse(jsonString);
+      
+      // Ensure we use the correct DOB and age
+      parsedData.personalInfo = parsedData.personalInfo || {};
+      parsedData.personalInfo.dateOfBirth = providedDob;
+      parsedData.personalInfo.age = calculateAgeFromDob(providedDob);
       
       console.log('Successfully parsed AI response');
       return parsedData;
@@ -70,27 +86,44 @@ async function processWithAI(text) {
     }
   } catch (error) {
     console.error('Error processing with AI:', error);
-    // Fallback to mock data in case of AI service failure
-    return generateMockAIResponse(text);
+    // Fallback to standard extraction in case of AI service failure
+    return generateMockAIResponse(text, providedDob);
   }
+}
+
+/**
+ * Calculate age from date of birth
+ */
+function calculateAgeFromDob(dobString) {
+  const today = new Date();
+  const birthDate = new Date(dobString);
+  
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
 }
 
 /**
  * Generate mock AI response for demo purposes
  */
-function generateMockAIResponse(text) {
-  console.log('Generating mock AI response for text length:', text.length);
+function generateMockAIResponse(text, providedDob) {
+  console.log('AI Processor: Generating mock AI response for text length:', text.length, 'and DOB:', providedDob);
   
   // Simple pattern matching for demo purposes
   const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
   const phoneMatch = text.match(/\b(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/);
-  const idMatch = text.match(/\b\d{3}[-]?\d{2}[-]?\d{4}\b/); // Simple SSN pattern
+  const idMatch = text.match(/\b\d{3}[-]?\d{2}[-]?\d{4}\b/);
 
-  return {
+  const mockResponse = {
     personalInfo: {
       fullName: "Extracted from document",
-      dateOfBirth: extractDateFromText(text),
-      age: Math.floor(Math.random() * 50) + 18
+      dateOfBirth: providedDob,
+      age: calculateAgeFromDob(providedDob)
     },
     contactInfo: {
       emails: emailMatch ? [emailMatch[0]] : [],
@@ -102,6 +135,9 @@ function generateMockAIResponse(text) {
     summary: "This is a mock AI extraction demonstrating structured data extraction capabilities. Provide a real Gemini API key for actual AI processing.",
     note: "Mock data - real AI processing requires GEMINI_API_KEY"
   };
+
+  console.log('AI Processor: Mock response generated successfully:', mockResponse);
+  return mockResponse;
 }
 
 /**
@@ -121,14 +157,6 @@ function extractDatesFromText(text) {
   });
   
   return dates.slice(0, 5);
-}
-
-/**
- * Extract a single date from text (for DOB)
- */
-function extractDateFromText(text) {
-  const dates = extractDatesFromText(text);
-  return dates.length > 0 ? dates[0] : "Not found";
 }
 
 /**

@@ -5,7 +5,13 @@ const { extractTextFromImage } = require('./imageExtractor');
 const { processWithAI } = require('./aiProcessor');
 const { calculateAge } = require('./utils');
 const { storeFile, storeDocumentMetadata, updateProcessingResults } = require('./supabaseService');
+const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
+
+// Initialize Supabase client for error handling
+const supabaseUrl = process.env.SUPABASE_URL || "https://biklzpyuarncssdbwfmk.supabase.co";
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Process uploaded document based on the selected method
@@ -33,7 +39,12 @@ async function processDocument(params) {
     });
 
     // Process the document asynchronously
-    processDocumentAsync(jobId, file, userData, processingMethod, fileUrl);
+    logger.info('Starting async document processing', { jobId, processingMethod });
+    
+    // Start async processing but don't wait for it to complete
+    processDocumentAsync(jobId, file, userData, processingMethod, fileUrl).catch(error => {
+      logger.error('Async document processing failed', { jobId, error: error.message });
+    });
 
     return jobId;
   } catch (error) {
@@ -52,10 +63,34 @@ async function processDocumentAsync(jobId, file, userData, processingMethod, fil
     // Extract text based on file type
     if (file.mimetype === 'application/pdf') {
       logger.info('Extracting text from PDF', { jobId });
-      rawText = await extractTextFromPDF(file.buffer);
+      try {
+        rawText = await extractTextFromPDF(file.buffer);
+        logger.info('PDF text extraction completed', { jobId, textLength: rawText.length });
+        
+        // Ensure we have some text, even if it's just an error message
+        if (!rawText || rawText.trim().length === 0) {
+          rawText = 'PDF text extraction completed but no readable text was found.';
+        }
+      } catch (pdfError) {
+        logger.error('PDF text extraction failed', { jobId, error: pdfError.message });
+        // Don't fail completely, use a fallback message
+        rawText = `PDF processing encountered an issue: ${pdfError.message}`;
+      }
     } else if (file.mimetype.startsWith('image/')) {
       logger.info('Extracting text from image', { jobId });
-      rawText = await extractTextFromImage(file.buffer);
+      try {
+        rawText = await extractTextFromImage(file.buffer);
+        logger.info('Image text extraction completed', { jobId, textLength: rawText.length });
+        
+        if (!rawText || rawText.trim().length === 0) {
+          rawText = 'Image text extraction completed but no readable text was found.';
+        }
+      } catch (imageError) {
+        logger.error('Image text extraction failed', { jobId, error: imageError.message });
+        rawText = `Image processing encountered an issue: ${imageError.message}`;
+      }
+    } else {
+      throw new Error(`Unsupported file type: ${file.mimetype}`);
     }
 
     logger.info('Text extraction completed', { 
@@ -66,19 +101,25 @@ async function processDocumentAsync(jobId, file, userData, processingMethod, fil
 
     let aiExtractedData = null;
     
-    // Process with AI if selected
+    // Process with AI if selected - PASS THE PROVIDED DOB
     if (processingMethod === 'ai') {
-      logger.info('Starting AI processing', { jobId });
-      aiExtractedData = await processWithAI(rawText);
-      logger.info('AI processing completed', { jobId });
+      try {
+        logger.info('Starting AI processing', { jobId });
+        aiExtractedData = await processWithAI(rawText, userData.dob);
+        logger.info('AI processing completed successfully', { jobId, hasData: !!aiExtractedData });
+      } catch (aiError) {
+        logger.error('AI processing failed', { jobId, error: aiError.message });
+        // Continue with standard processing instead of failing completely
+        aiExtractedData = null;
+      }
     }
 
-    // Calculate age from date of birth
+    // Calculate age from the provided date of birth (not from document)
     const age = calculateAge(userData.dob);
 
-    // Prepare results
+    // Prepare results - ensure we always have some content
     const results = {
-      rawText,
+      rawText: rawText || 'No text could be extracted from the document.',
       aiExtractedData,
       fullName: `${userData.firstName} ${userData.lastName}`,
       age,
@@ -87,7 +128,7 @@ async function processDocumentAsync(jobId, file, userData, processingMethod, fil
     // Update results in database
     await updateProcessingResults(jobId, results);
 
-    logger.info('Document processing completed successfully', { jobId });
+    logger.info('Document processing completed successfully', { jobId, textLength: rawText.length });
   } catch (error) {
     logger.error(`Error processing document for job ${jobId}`, error);
     
@@ -108,4 +149,5 @@ async function processDocumentAsync(jobId, file, userData, processingMethod, fil
 
 module.exports = {
   processDocument,
+  processDocumentAsync,
 };
