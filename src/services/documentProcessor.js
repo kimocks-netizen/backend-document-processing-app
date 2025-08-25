@@ -5,6 +5,7 @@ const { extractTextFromImage } = require('./imageExtractor');
 const { processWithAI } = require('./aiProcessor');
 const { calculateAge } = require('./utils');
 const { storeFile, storeDocumentMetadata, updateProcessingResults } = require('./supabaseService');
+const { supabase } = require('./supabaseService');
 const logger = require('../utils/logger');
 
 /**

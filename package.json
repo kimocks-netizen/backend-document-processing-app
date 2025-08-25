@@ -18,6 +18,7 @@
         "express-rate-limit": "^7.1.5",
         "multer": "^2.0.2",
         "pdf-parse": "^1.1.1",
+        "pdf2pic": "^3.2.0",
         "tesseract.js": "^4.1.1",
         "uuid": "^9.0.1"
     },

@@ -17,31 +17,37 @@ async function processWithAI(text) {
       return generateMockAIResponse(text);
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `
-      Analyze the following text extracted from a document and extract structured information.
-      Look for personal details, contact information, dates, addresses, and any other relevant information.
-      
-      Return ONLY a JSON object with this structure:
-      {
-        "personalInfo": {
-          "fullName": "extracted full name",
-          "dateOfBirth": "extracted date of birth",
-          "age": calculated age if possible
-        },
-        "contactInfo": {
-          "emails": ["email1", "email2"],
-          "phoneNumbers": ["phone1", "phone2"]
-        },
-        "addresses": ["address1", "address2"],
-        "identificationNumbers": ["id1", "id2"],
-        "keyDates": ["date1", "date2"],
-        "summary": "brief summary of the document content"
-      }
-      
-      Text to analyze:
-      ${text.substring(0, 3000)} // Limit text length to avoid token limits
+    Analyze the following text extracted from a document and extract important information.
+
+    Look for:
+    1. Important information (names, dates)
+    2. Contact information (emails, phone numbers)
+    3. Addresses
+    4. Identification numbers
+    5. Important dates
+    6. Document summary
+
+    Return ONLY a JSON object with this structure:
+    {
+      "importantInfo": {
+        "fullName": "extracted full name if found",
+        "dateOfBirth": "extracted date if found"
+      },
+      "contactInfo": {
+        "emails": ["email1", "email2"],
+        "phoneNumbers": ["phone1", "phone2"]
+      },
+      "addresses": ["address1", "address2"],
+      "identificationNumbers": ["id1", "id2"],
+      "keyDates": ["date1", "date2"],
+      "summary": "brief summary of the document content"
+    }
+
+    Text to analyze:
+    ${text.substring(0, 3000)}
     `;
 
     console.log('Sending request to Gemini AI...');
@@ -53,7 +59,6 @@ async function processWithAI(text) {
     
     // Try to parse JSON from AI response
     try {
-      // Extract JSON from response (AI might wrap it in markdown code blocks)
       const jsonMatch = aiText.match(/```json\n([\s\S]*?)\n```/) || aiText.match(/({[\s\S]*})/);
       const jsonString = jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiText;
       const parsedData = JSON.parse(jsonString);
@@ -70,27 +75,24 @@ async function processWithAI(text) {
     }
   } catch (error) {
     console.error('Error processing with AI:', error);
-    // Fallback to mock data in case of AI service failure
     return generateMockAIResponse(text);
   }
 }
 
 /**
- * Generate mock AI response for demo purposes
+ * Generate mock AI response
  */
 function generateMockAIResponse(text) {
   console.log('Generating mock AI response for text length:', text.length);
   
-  // Simple pattern matching for demo purposes
   const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
   const phoneMatch = text.match(/\b(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/);
-  const idMatch = text.match(/\b\d{3}[-]?\d{2}[-]?\d{4}\b/); // Simple SSN pattern
+  const idMatch = text.match(/\b\d{3}[-]?\d{2}[-]?\d{4}\b/);
 
   return {
-    personalInfo: {
+    importantInfo: {
       fullName: "Extracted from document",
-      dateOfBirth: extractDateFromText(text),
-      age: Math.floor(Math.random() * 50) + 18
+      dateOfBirth: "Not found"
     },
     contactInfo: {
       emails: emailMatch ? [emailMatch[0]] : [],
@@ -99,7 +101,7 @@ function generateMockAIResponse(text) {
     addresses: extractAddressesFromText(text),
     identificationNumbers: idMatch ? [idMatch[0]] : [],
     keyDates: extractDatesFromText(text),
-    summary: "This is a mock AI extraction demonstrating structured data extraction capabilities. Provide a real Gemini API key for actual AI processing.",
+    summary: "This is a mock AI extraction. Provide a real Gemini API key for actual AI processing.",
     note: "Mock data - real AI processing requires GEMINI_API_KEY"
   };
 }
@@ -109,9 +111,9 @@ function generateMockAIResponse(text) {
  */
 function extractDatesFromText(text) {
   const datePatterns = [
-    /\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g,
+    /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g,
     /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b/gi,
-    /\b\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\b/g
+    /\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b/g
   ];
   
   const dates = [];
@@ -124,18 +126,9 @@ function extractDatesFromText(text) {
 }
 
 /**
- * Extract a single date from text (for DOB)
- */
-function extractDateFromText(text) {
-  const dates = extractDatesFromText(text);
-  return dates.length > 0 ? dates[0] : "Not found";
-}
-
-/**
  * Extract addresses from text
  */
 function extractAddressesFromText(text) {
-  // Basic address pattern matching
   const addressPatterns = [
     /\b\d+\s+[\w\s]+,?\s+(?:Ave|St|Rd|Blvd|Dr|Ln)\.?,?\s+[\w\s]+,?\s+[A-Z]{2},?\s+\d{5}\b/gi,
     /\bP\.?O\.?\s+Box\s+\d+\b/gi,

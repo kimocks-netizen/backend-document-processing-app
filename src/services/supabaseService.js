@@ -156,10 +156,10 @@ async function getAllProcessingJobs() {
 }
 
 module.exports = {
+  supabase,
   storeFile,
   storeDocumentMetadata,
   updateProcessingResults,
   getProcessingResult,
   getAllProcessingJobs,
-  
 };
