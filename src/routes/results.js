@@ -1,6 +1,6 @@
 // backend/routes/results.js
 const express = require('express');
-const { getProcessingResult, getAllProcessingJobs } = require('../services/supabaseService');
+const { getProcessingResult, getAllProcessingJobs, deleteProcessingJob } = require('../services/supabaseService');
 
 const router = express.Router();
 
@@ -30,6 +30,27 @@ router.get('/:jobId', async (req, res, next) => {
     }
 
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/results/:jobId - Delete a processing job
+router.delete('/:jobId', async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+
+    const deleted = await deleteProcessingJob(jobId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.status(200).json({ message: 'Job deleted successfully' });
   } catch (error) {
     next(error);
   }

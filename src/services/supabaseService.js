@@ -155,6 +155,62 @@ async function getAllProcessingJobs() {
   }));
 }
 
+/**
+ * Delete a processing job from Supabase
+ * @param {string} jobId - Job identifier
+ * @returns {Promise<boolean>} True if deleted, false if not found
+ */
+async function deleteProcessingJob(jobId) {
+  try {
+    // First, get the job to check if it exists and get file information
+    const { data: job, error: fetchError } = await supabase
+      .from('document_processing_jobs')
+      .select('file_url, file_name')
+      .eq('job_id', jobId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') { // No rows found
+        return false;
+      }
+      throw new Error(`Failed to fetch job: ${fetchError.message}`);
+    }
+
+    // Delete the file from storage if it exists
+    if (job.file_url) {
+      try {
+        const filePath = job.file_url.split('/').pop(); // Extract filename from URL
+        const { error: storageError } = await supabase.storage
+          .from('my-files')
+          .remove([filePath]);
+
+        if (storageError) {
+          console.warn(`Failed to delete file from storage: ${storageError.message}`);
+          // Continue with database deletion even if file deletion fails
+        }
+      } catch (storageError) {
+        console.warn(`Error deleting file from storage: ${storageError.message}`);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+
+    // Delete the job record from the database
+    const { error: deleteError } = await supabase
+      .from('document_processing_jobs')
+      .delete()
+      .eq('job_id', jobId);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete job: ${deleteError.message}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting processing job:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   supabase,
   storeFile,
@@ -162,4 +218,5 @@ module.exports = {
   updateProcessingResults,
   getProcessingResult,
   getAllProcessingJobs,
+  deleteProcessingJob,
 };
