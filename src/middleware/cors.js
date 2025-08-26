@@ -7,15 +7,35 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
+      // Development
       'http://localhost:3000', // Next.js dev server
       'http://localhost:3001', // Express server
-      process.env.FRONTEND_URL // Production frontend URL
+      
+      // Production Frontend URLs
+      'https://document-processing-app-ashen.vercel.app', // Your Vercel app
+      'https://*.vercel.app', // Any Vercel app
+      
+      // Environment variable override
+      process.env.FRONTEND_URL,
+      process.env.CORS_ORIGIN
     ].filter(Boolean);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        // Handle wildcard patterns like *.vercel.app
+        const pattern = allowedOrigin.replace('*', '');
+        return origin.includes(pattern);
+      }
+      return origin === allowedOrigin;
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
     }
   },
   credentials: true,
