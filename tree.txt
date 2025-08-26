@@ -1,65 +1,43 @@
-backend/
+backend-document-processing-app/
 ├── src/
 │   ├── server.js                # Express entry point
 │   │
 │   ├── routes/                  # Route definitions
-│   │   ├── upload.routes.js     # POST /upload
-│   │   ├── jobs.routes.js       # POST /jobs, GET /jobs/:id
-│   │   ├── results.routes.js    # GET /jobs/:id/result
-│   │   └── health.routes.js     # GET /health
+│   │   ├── upload.js            # POST /api/upload
+│   │   ├── results.js           # GET /api/results, DELETE /api/results/:jobId
+│   │   └── health.js            # GET /api/health
 │   │
-│   ├── controllers/             # Controllers handle request/response
-│   │   ├── upload.controller.js
-│   │   ├── jobs.controller.js
-│   │   └── results.controller.js
-│   │
-│   ├── services/                # Core logic
-│   │   ├── storage.service.js   # Supabase storage
-│   │   ├── db.service.js        # Supabase/Postgres queries
-│   │   ├── extractor.service.js # Tesseract/pdf-parse
-│   │   ├── ai.service.js        # Gemini API wrapper
-│   │   ├── job-runner.service.js# Orchestrates processing steps
-│   │   └── result-builder.js    # DOB → age, fullName, clean JSON
-│   │
-│   ├── ws/                      # WebSocket
-│   │   ├── socket.js            # Socket.IO server setup
-│   │   └── events.js            # Job progress events
-│   │
-│   ├── db/                      # Database config
-│   │   ├── supabase.js          # Supabase client setup
-│   │   ├── schema.sql           # DB schema
-│   │   └── migrations/          # Migration scripts
+│   ├── services/                # Core business logic
+│   │   ├── documentProcessor.js # Main document processing orchestrator
+│   │   ├── aiProcessor.js       # Google Gemini AI integration
+│   │   ├── pdfExtractor.js      # PDF text extraction and OCR
+│   │   ├── imageExtractor.js    # Image processing utilities
+│   │   ├── supabaseService.js   # Supabase database and storage operations
+│   │   └── utils.js             # Helper functions
 │   │
 │   ├── middleware/              # Express middleware
-│   │   ├── errorHandler.js
-│   │   ├── validateRequest.js
-│   │   ├── uploadLimiter.js
-│   │   └── cors.js
+│   │   ├── cors.js              # CORS configuration
+│   │   ├── errorHandler.js      # Global error handling
+│   │   ├── uploadLimiter.js     # File upload rate limiting
+│   │   └── validateRequest.js   # Request validation
 │   │
-│   ├── utils/                   # Helpers
-│   │   ├── logger.js
-│   │   ├── fileUtils.js
-│   │   ├── dateUtils.js
-│   │   └── responseBuilder.js
+│   ├── config/                  # Configuration files
+│   │   ├── env.js               # Environment variables loader
+│   │   └── constants.js         # Application constants
 │   │
-│   ├── config/
-│   │   ├── env.js               # Load .env variables
-│   │   └── constants.js
-│   │
-│   ├── jobs/                    # Optional queue integration
-│   │   └── queue.js
-│   │
-│   └── tests/                   # Tests
-│       ├── unit/
-│       │   ├── ai.service.test.js
-│       │   └── extractor.service.test.js
-│       └── integration/
-│           ├── jobs.routes.test.js
-│           └── upload.routes.test.js
+│   └── utils/                   # Utility functions
+│       └── logger.js            # Logging utilities
 │
-├── public/                      # Static assets (optional)
-│
-├── Dockerfile
-├── docker-compose.yml
-├── package.json
-└── .env
+├── Dockerfile                    # Standard Dockerfile (Linux/macOS)
+├── Dockerfile.windows            # Windows-compatible Dockerfile
+├── docker-compose.yml            # Docker Compose configuration
+├── docker-compose.windows.yml    # Windows-specific Docker Compose
+├── env.production                # Production environment variables
+├── railway.toml                  # Railway deployment configuration
+├── schema.sql                    # Database schema
+├── eng.traineddata              # Tesseract English language data
+├── package.json                  # Dependencies and scripts
+├── package-lock.json            # Locked dependency versions
+├── README.md                     # Comprehensive project documentation
+├── backend-dockercommands.md    # Docker command reference
+└── tree.txt                     # This file structure
