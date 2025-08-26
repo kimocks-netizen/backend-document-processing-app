@@ -1,11 +1,15 @@
-# backend/Dockerfile
-FROM node:18-alpine
+# Use Node.js 18 Ubuntu as base image for better compatibility
+FROM node:18-bullseye
 
-# Install Poppler for PDF processing
-RUN apk add --no-cache poppler-utils
+# Install system dependencies for PDF processing
+RUN apt-get update && apt-get install -y \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
@@ -16,16 +20,24 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Create necessary directories
+RUN mkdir -p /tmp/pdf-processing /tmp/images
+
+# Create a non-root user
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 
 # Change ownership of the app directory
-RUN chown -R nodejs:nodejs /usr/src/app
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
 USER nodejs
 
 # Expose port
 EXPOSE 3001
+
+# Health check to verify PDF tools are available
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "const { execSync } = require('child_process'); try { execSync('pdftoppm -v', { stdio: 'ignore' }); execSync('tesseract --version', { stdio: 'ignore' }); process.exit(0); } catch (e) { process.exit(1); }"
 
 # Start the application
 CMD ["npm", "start"]
