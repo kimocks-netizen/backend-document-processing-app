@@ -128,6 +128,9 @@ async function getProcessingResult(jobId) {
     rawText: data.raw_text,
     aiExtractedData: data.ai_extracted_data,
     processingMethod: data.processing_method,
+    fileUrl: data.file_url,
+    fileName: data.file_name,
+    mimeType: data.mime_type,
   };
 }
 
